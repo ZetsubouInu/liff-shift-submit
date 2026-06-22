@@ -47,14 +47,14 @@ function checkRegistration() {
         document.getElementById('display-genji-name').textContent = savedName;
         
         generateShiftForm(); 
-        prefillShiftForm();  // データ確認とロック処理を実行
+        prefillShiftForm();  
     } else {
         document.getElementById('register-section').style.display = 'block';
         document.getElementById('shift-section').style.display = 'none';
     }
 }
 
-// 時間の正規化関数（スプレッドシートの仕様対策）
+// 時間の正規化関数
 function normalizeTime(timeStr) {
     if (!timeStr) return "";
     const parts = timeStr.split(":");
@@ -87,7 +87,6 @@ function prefillShiftForm() {
             
             let alreadySubmitted = false;
 
-            // フォーム内の日付（来週の月〜日）に該当する提出済みデータが1つでもあるかチェック
             startElements.forEach((startEl) => {
                 const dateStr = startEl.getAttribute('data-date');
                 
@@ -98,14 +97,13 @@ function prefillShiftForm() {
                 });
                 
                 if (existingShift) {
-                    alreadySubmitted = true;
+                    alreadySubmitted = true; // 表示期間のシフトが1日でも存在すればロックフラグを立てる
                 }
             });
 
             const calendarContainer = document.getElementById('calendar-container');
 
             if (alreadySubmitted) {
-                // 【ロック処理】すでに提出済みの場合はカレンダーとボタンを隠し、案内メッセージを表示する
                 calendarContainer.style.display = 'none';
                 submitBtn.style.display = 'none';
 
@@ -115,7 +113,7 @@ function prefillShiftForm() {
                     msgDiv.id = 'submitted-message';
                     msgDiv.innerHTML = `
                         <div style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
-                            <p style="font-weight: bold; margin-bottom: 10px;">✅ 来週のシフトは提出済みです</p>
+                            <p style="font-weight: bold; margin-bottom: 10px;">✅ 対象期間のシフトは提出済みです</p>
                             <p style="font-size: 14px; margin: 0;">シフト変更したい場合、<br><span style="color: red; font-weight: bold;">トークルームに直接入力をお願いします！</span></p>
                         </div>
                     `;
@@ -124,7 +122,6 @@ function prefillShiftForm() {
                 msgDiv.style.display = 'block';
 
             } else {
-                // まだ提出していない場合は通常通りフォームを表示させる
                 calendarContainer.style.display = 'block';
                 submitBtn.style.display = 'block';
                 submitBtn.textContent = "シフトを提出する";
@@ -162,26 +159,30 @@ function switchTab(type) {
     }
 }
 
-// ターゲットとなる「来週の月曜日」の日付を計算
-function getTargetMonday() {
+// 【新規追加】明日から来週の日曜日までの日付配列を計算して生成する関数
+function getShiftTargetDates() {
     const today = new Date();
-    const dayOfWeek = today.getDay();
-    let daysUntilNextMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
-    if (dayOfWeek >= 4 || dayOfWeek === 0) { 
-        daysUntilNextMonday += 7; 
-    }
-    const targetMonday = new Date(today);
-    targetMonday.setDate(today.getDate() + daysUntilNextMonday);
-    return targetMonday;
-}
+    
+    // 明日の日付を算出
+    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
 
-function generateTargetWeekDates(baseDate) {
+    // 今週の月曜日の日付を算出
+    const dayOfWeek = today.getDay(); // 0:日, 1:月...
+    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const thisMonday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysToMonday);
+
+    // 来週の日曜日の日付を算出 (今週の月曜日 + 13日)
+    const nextSunday = new Date(thisMonday.getFullYear(), thisMonday.getMonth(), thisMonday.getDate() + 13);
+
     const dates = [];
-    for (let i = 0; i < 7; i++) {
-        const currentDate = new Date(baseDate);
-        currentDate.setDate(baseDate.getDate() + i);
-        dates.push(currentDate);
+    let currentDate = new Date(tomorrow);
+    
+    // 明日から来週の日曜日までの配列を作成
+    while (currentDate <= nextSunday) {
+        dates.push(new Date(currentDate));
+        currentDate.setDate(currentDate.getDate() + 1);
     }
+    
     return dates;
 }
 
@@ -201,25 +202,27 @@ function generateShiftForm() {
     const container = document.getElementById('calendar-container');
     container.innerHTML = "";
     
-    const daysOfWeek = ["月", "火", "水", "木", "金", "土", "日"];
+    const daysOfWeekArray = ["日", "月", "火", "水", "木", "金", "土"];
     const timeOptions = generateTimeOptions();
-    const targetMonday = getTargetMonday();
-    const targetDates = generateTargetWeekDates(targetMonday);
+    
+    // 動的に明日〜来週日曜日の日付を取得
+    const targetDates = getShiftTargetDates();
 
     const startMonth = targetDates[0].getMonth() + 1;
     const startDate = targetDates[0].getDate();
-    const endMonth = targetDates[6].getMonth() + 1;
-    const endDate = targetDates[6].getDate();
+    const endMonth = targetDates[targetDates.length - 1].getMonth() + 1;
+    const endDate = targetDates[targetDates.length - 1].getDate();
     document.getElementById('target-week-title').textContent = 
         `対象期間: ${startMonth}/${startDate} 〜 ${endMonth}/${endDate}`;
 
-    targetDates.forEach((date, index) => {
+    targetDates.forEach((date) => {
         const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
         const fullDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        const dayStr = daysOfWeekArray[date.getDay()]; // 日付オブジェクトから曜日を取得
 
         const html = `
             <div class="day-row">
-                <div class="day-label">${dateStr} (${daysOfWeek[index]})</div>
+                <div class="day-label">${dateStr} (${dayStr})</div>
                 <div class="time-selects">
                     <select class="start-time" data-date="${fullDateStr}">
                         ${timeOptions}
@@ -265,9 +268,7 @@ function submitShiftData() {
     .then(() => {
         alert("シフトの提出が完了しました！");
         submitBtn.textContent = "提出完了";
-        
-        // 提出完了後、画面を再描画してロック状態にする
-        checkRegistration();
+        checkRegistration(); // 提出完了後に画面をロック状態へ移行
     })
     .catch(err => {
         console.error("送信エラー:", err);
