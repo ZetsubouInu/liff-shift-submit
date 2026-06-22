@@ -1,0 +1,118 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", "Hiragino Kaku Gothic ProN", "Hiragino Sans", Arial, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+    margin: 0;
+    padding: 0;
+}
+
+.container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+h2, h3 {
+    margin-top: 0;
+    color: #111;
+}
+
+p {
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+.note {
+    color: #e53935;
+    font-size: 12px;
+}
+
+.header-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.cast-name-display {
+    font-weight: bold;
+    color: #06C755; /* LINEカラー風 */
+}
+
+.shift-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+input[type="text"] {
+    width: 100%;
+    padding: 12px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.day-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.day-row:last-child {
+    border-bottom: none;
+    margin-bottom: 20px;
+}
+
+.day-label {
+    width: 35%;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.time-selects {
+    width: 65%;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+select {
+    padding: 8px;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background-color: #fff;
+}
+
+.time-separator {
+    margin: 0 8px;
+    color: #666;
+}
+
+.primary-btn {
+    display: block;
+    width: 100%;
+    background-color: #06C755; /* LINEカラー */
+    color: #fff;
+    border: none;
+    padding: 15px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-top: 10px;
+}
+
+.primary-btn:active {
+    background-color: #05a546;
+}

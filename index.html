@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト提出</title>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div id="register-section">
+            <h2>キャスト登録</h2>
+            <p>シフト管理用の源氏名を入力してください。<br><span class="note">※この操作は初回のみです</span></p>
+            <div class="form-group">
+                <input type="text" id="genji-name-input" placeholder="例：ゆあ">
+            </div>
+            <button id="save-name-btn" class="primary-btn">登録してシフト入力へ</button>
+        </div>
+
+        <div id="shift-section" style="display: none;">
+            <div class="header-info">
+                <h2>シフト提出</h2>
+                <p class="cast-name-display">キャスト名：<span id="display-genji-name"></span></p>
+            </div>
+            
+            <div class="shift-card">
+                <h3 id="target-week-title">来週のシフト</h3>
+                <form id="shift-form">
+                    <div id="calendar-container">
+                        </div>
+                    <button type="button" id="submit-shift-btn" class="primary-btn">シフトを提出する</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
