@@ -47,7 +47,7 @@ function checkRegistration() {
         document.getElementById('display-genji-name').textContent = savedName;
         
         generateShiftForm(); // フォーム（カレンダー）を生成
-        prefillShiftForm();  // 【追加】GASから過去データを引っ張ってきて自動セットする
+        prefillShiftForm();  // 過去データを引っ張ってきて自動セット
     } else {
         document.getElementById('register-section').style.display = 'block';
         document.getElementById('shift-section').style.display = 'none';
@@ -59,7 +59,6 @@ function prefillShiftForm() {
     const savedName = localStorage.getItem('castGenjiName');
     const url = `${GAS_WEB_APP_URL}?castName=${encodeURIComponent(savedName)}`;
     
-    // 読み込み中はボタンを押せないようにして、文字を変更する
     const submitBtn = document.getElementById('submit-shift-btn');
     const originalText = submitBtn.textContent;
     submitBtn.textContent = "過去のデータを読み込み中...";
@@ -75,16 +74,14 @@ function prefillShiftForm() {
             
             startElements.forEach((startEl, index) => {
                 const endEl = endElements[index];
-                const dateStr = startEl.getAttribute('data-date'); // 例: "2026-06-22"
+                const dateStr = startEl.getAttribute('data-date');
                 
-                // 取得したデータの中から、この日と同じ日付の提出済みシフトを探す
                 const existingShift = data.find(shift => {
                     const d = new Date(shift.dateValue);
                     const shiftDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                     return shiftDateStr === dateStr;
                 });
                 
-                // データがあれば、プルダウンの値をそれに書き換える
                 if (existingShift) {
                     startEl.value = existingShift.start || "";
                     endEl.value = existingShift.end || "";
@@ -94,7 +91,6 @@ function prefillShiftForm() {
     })
     .catch(err => console.error("自動入力エラー:", err))
     .finally(() => {
-        // 処理が終わったらボタンを元の状態に戻す
         submitBtn.textContent = originalText;
         submitBtn.disabled = false;
     });
@@ -143,8 +139,11 @@ function generateTargetWeekDates(baseDate) {
     return dates;
 }
 
+// プルダウンの選択肢を生成する関数（LASTを追加）
 function generateTimeOptions() {
     let options = '<option value="">休み</option>';
+    options += '<option value="27:00">LAST</option>'; // 【追加】休みのすぐ下にLASTを配置
+    
     for (let hour = 18; hour <= 27; hour++) {
         options += `<option value="${hour}:00">${hour}:00</option>`;
         if (hour !== 27) {
@@ -254,8 +253,9 @@ function fetchViewShifts() {
             data.forEach(shift => {
                 let timeStr = "休み";
                 if (shift.start || shift.end) {
-                    const startText = shift.start || "未定";
-                    const endText = shift.end || "未定";
+                    // 【追加】閲覧画面でも「27:00」を「LAST」に変換して見やすくする
+                    const startText = shift.start === "27:00" ? "LAST" : (shift.start || "未定");
+                    const endText = shift.end === "27:00" ? "LAST" : (shift.end || "未定");
                     timeStr = `${startText} 〜 ${endText}`;
                 }
 
