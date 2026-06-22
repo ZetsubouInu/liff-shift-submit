@@ -18,21 +18,28 @@
             <button id="save-name-btn" class="primary-btn">登録してシフト入力へ</button>
         </div>
 
-        <div id="shift-section" style="display: none;">
-            <div class="header-info">
-                <h2>シフト提出</h2>
-                <p class="cast-name-display">キャスト名：<span id="display-genji-name"></span></p>
-            </div>
-            
-            <div class="shift-card">
-                <h3 id="target-week-title">来週のシフト</h3>
-                <form id="shift-form">
-                    <div id="calendar-container">
-                        </div>
-                    <button type="button" id="submit-shift-btn" class="primary-btn">シフトを提出する</button>
-                </form>
-            </div>
+<div id="shift-section" style="display: none;">
+    <h2>こんにちは、<span id="display-genji-name"></span>さん</h2>
+    
+    <div class="tab-container">
+        <button id="tab-submit" class="tab-btn active">シフトを提出する</button>
+        <button id="tab-view" class="tab-btn">提出済みシフトを見る</button>
+    </div>
+
+    <div id="sector-submit" class="tab-content">
+        <h3 id="target-week-title">対象期間: --/-- 〜 --/--</h3>
+        <div id="calendar-container"></div>
+        <button id="submit-shift-btn">シフトを提出する</button>
+    </div>
+
+    <div id="sector-view" class="tab-content" style="display: none;">
+        <h3>あなたの提出済みシフト</h3>
+        <p style="font-size: 11px; color: #888; margin-bottom: 10px;">※今月〜来月末までの確定・提出済みシフトが表示されます</p>
+        <div id="shift-list-container">
+            <p style="text-align: center; color: #888;">読み込み中...</p>
         </div>
+    </div>
+</div>
     </div>
 
     <script src="script.js"></script>
