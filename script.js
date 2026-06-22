@@ -3,7 +3,6 @@ const LIFF_ID = "2010473243-llp7zgX9";
 const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyQfJe2XlHcUt5WWl7YEiggAGjJarZJ4U46g3ekrZ7xpAqB5eoQqr1437fTGSenw-JIOg/exec";
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. LIFFの初期化
     liff.init({ liffId: LIFF_ID }).then(() => {
         if (!liff.isLoggedIn()) {
             liff.login(); 
@@ -12,7 +11,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }).catch(err => console.error("LIFF初期化失敗", err));
 
-    // 2. 登録ボタンのイベント
     document.getElementById('save-name-btn').addEventListener('click', () => {
         const nameInput = document.getElementById('genji-name-input').value.trim();
         if (nameInput === "") {
@@ -23,12 +21,10 @@ document.addEventListener('DOMContentLoaded', () => {
         checkRegistration();
     });
 
-    // 3. 提出ボタンのイベント
     document.getElementById('submit-shift-btn').addEventListener('click', () => {
         submitShiftData();
     });
 
-    // 4. タブ切り替えイベントの追加
     document.getElementById('tab-submit').addEventListener('click', () => {
         switchTab('submit');
     });
@@ -38,7 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// 登録状態のチェックと画面切り替え
 function checkRegistration() {
     const savedName = localStorage.getItem('castGenjiName');
     if (savedName) {
@@ -46,15 +41,13 @@ function checkRegistration() {
         document.getElementById('shift-section').style.display = 'block';
         document.getElementById('display-genji-name').textContent = savedName;
         
-        generateShiftForm(); 
-        prefillShiftForm();  
+        fetchAndRenderShiftForm(); // 統合した新しい関数を呼び出す
     } else {
         document.getElementById('register-section').style.display = 'block';
         document.getElementById('shift-section').style.display = 'none';
     }
 }
 
-// 時間の正規化関数
 function normalizeTime(timeStr) {
     if (!timeStr) return "";
     const parts = timeStr.split(":");
@@ -68,78 +61,6 @@ function normalizeTime(timeStr) {
     return timeStr;
 }
 
-// 過去データを確認し、すでに提出済みならフォームをロックする関数
-function prefillShiftForm() {
-    const savedName = localStorage.getItem('castGenjiName');
-    const url = `${GAS_WEB_APP_URL}?castName=${encodeURIComponent(savedName)}`;
-    
-    const submitBtn = document.getElementById('submit-shift-btn');
-    const originalText = submitBtn.textContent;
-    submitBtn.textContent = "提出状況を確認中...";
-    submitBtn.disabled = true;
-
-    fetch(url)
-    .then(res => res.json())
-    .then(resData => {
-        if (resData.status === "success") {
-            const data = resData.data;
-            const startElements = document.querySelectorAll('.start-time');
-            
-            let alreadySubmitted = false;
-
-            startElements.forEach((startEl) => {
-                const dateStr = startEl.getAttribute('data-date');
-                
-                const existingShift = data.find(shift => {
-                    const d = new Date(shift.dateValue);
-                    const shiftDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                    return shiftDateStr === dateStr;
-                });
-                
-                if (existingShift) {
-                    alreadySubmitted = true;
-                }
-            });
-
-            const calendarContainer = document.getElementById('calendar-container');
-
-            if (alreadySubmitted) {
-                calendarContainer.style.display = 'none';
-                submitBtn.style.display = 'none';
-
-                let msgDiv = document.getElementById('submitted-message');
-                if (!msgDiv) {
-                    msgDiv = document.createElement('div');
-                    msgDiv.id = 'submitted-message';
-                    msgDiv.innerHTML = `
-                        <div style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
-                            <p style="font-weight: bold; margin-bottom: 10px;">✅ 対象期間のシフトは提出済みです</p>
-                            <p style="font-size: 14px; margin: 0;">シフト変更したい場合、<br><span style="color: red; font-weight: bold;">トークルームに直接入力をお願いします！</span></p>
-                        </div>
-                    `;
-                    document.getElementById('sector-submit').appendChild(msgDiv);
-                }
-                msgDiv.style.display = 'block';
-
-            } else {
-                calendarContainer.style.display = 'block';
-                submitBtn.style.display = 'block';
-                submitBtn.textContent = "シフトを提出する";
-                submitBtn.disabled = false;
-                
-                const msgDiv = document.getElementById('submitted-message');
-                if (msgDiv) msgDiv.style.display = 'none';
-            }
-        }
-    })
-    .catch(err => {
-        console.error("データ確認エラー:", err);
-        submitBtn.textContent = "シフトを提出する";
-        submitBtn.disabled = false;
-    });
-}
-
-// タブの表示切り替えロジック
 function switchTab(type) {
     const btnSubmit = document.getElementById('tab-submit');
     const btnView = document.getElementById('tab-view');
@@ -159,34 +80,6 @@ function switchTab(type) {
     }
 }
 
-// 明日から来週の日曜日までの日付配列を計算して生成する関数
-function getShiftTargetDates() {
-    const today = new Date();
-    
-    // 明日の日付を算出
-    const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-
-    // 今週の月曜日の日付を算出
-    const dayOfWeek = today.getDay(); // 0:日, 1:月...
-    const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-    const thisMonday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysToMonday);
-
-    // 来週の日曜日の日付を算出 (今週の月曜日 + 13日)
-    const nextSunday = new Date(thisMonday.getFullYear(), thisMonday.getMonth(), thisMonday.getDate() + 13);
-
-    const dates = [];
-    let currentDate = new Date(tomorrow);
-    
-    // 明日から来週の日曜日までの配列を作成
-    while (currentDate <= nextSunday) {
-        dates.push(new Date(currentDate));
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    return dates;
-}
-
-// プルダウンの選択肢を生成する関数
 function generateTimeOptions() {
     let options = '<option value="">休み</option>';
     options += '<option value="27:00">LAST</option>'; 
@@ -198,55 +91,160 @@ function generateTimeOptions() {
     return options;
 }
 
-function generateShiftForm() {
-    const container = document.getElementById('calendar-container');
-    container.innerHTML = "";
+// 【新規】データ取得と「今週」「来週」のブロック分割生成を行う関数
+function fetchAndRenderShiftForm() {
+    const savedName = localStorage.getItem('castGenjiName');
+    const url = `${GAS_WEB_APP_URL}?castName=${encodeURIComponent(savedName)}`;
     
+    const container = document.getElementById('calendar-container');
+    const submitBtn = document.getElementById('submit-shift-btn');
+    const titleEl = document.getElementById('target-week-title');
+
+    // 初期表示リセット
+    if (titleEl) titleEl.style.display = 'none'; // 古い見出しは非表示
+    container.innerHTML = '<p style="text-align: center; padding: 20px;">提出状況を確認中...</p>';
+    submitBtn.style.display = 'none';
+
+    fetch(url)
+    .then(res => res.json())
+    .then(resData => {
+        if (resData.status === "success") {
+            const fetchedData = resData.data;
+
+            // --- 日付の計算 ---
+            const today = new Date();
+            const dayOfWeek = today.getDay(); // 0:日, 1:月...
+            const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+            // ① 今週の配列（明日 〜 今週の日曜日）
+            const thisWeekDates = [];
+            if (dayOfWeek !== 0) { // 今日が日曜日でなければ生成
+                const daysToSunday = 7 - dayOfWeek;
+                const thisSunday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysToSunday);
+                let curr = new Date(tomorrow);
+                while (curr <= thisSunday) {
+                    thisWeekDates.push(new Date(curr));
+                    curr.setDate(curr.getDate() + 1);
+                }
+            }
+
+            // ② 来週の配列（来週の月曜日 〜 来週の日曜日）
+            const nextWeekDates = [];
+            const daysToNextMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+            const nextMonday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysToNextMonday);
+            const nextSunday = new Date(nextMonday.getFullYear(), nextMonday.getMonth(), nextMonday.getDate() + 6);
+            let curr2 = new Date(nextMonday);
+            while (curr2 <= nextSunday) {
+                nextWeekDates.push(new Date(curr2));
+                curr2.setDate(curr2.getDate() + 1);
+            }
+
+            // --- 提出済み（ロック）の判定 ---
+            function hasSubmission(dateArray) {
+                return dateArray.some(dateObj => {
+                    const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+                    return fetchedData.some(shift => {
+                        const d = new Date(shift.dateValue);
+                        const shiftDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                        return shiftDateStr === dateStr;
+                    });
+                });
+            }
+
+            const thisWeekLocked = hasSubmission(thisWeekDates);
+            const nextWeekLocked = hasSubmission(nextWeekDates);
+
+            // --- HTMLの組み立て ---
+            let html = "";
+
+            function getLockedMessageHtml(label) {
+                return `
+                    <div style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; border-radius: 5px; margin-bottom: 20px; text-align: center;">
+                        <p style="font-weight: bold; margin-bottom: 10px;">✅ ${label}のシフトは提出済みです</p>
+                        <p style="font-size: 14px; margin: 0;">変更したい場合は、<br><span style="color: red; font-weight: bold;">トークルームに直接入力をお願いします！</span></p>
+                    </div>
+                `;
+            }
+
+            // 今週ブロックの描画
+            if (thisWeekDates.length > 0) {
+                const s = `${thisWeekDates[0].getMonth() + 1}/${thisWeekDates[0].getDate()}`;
+                const e = `${thisWeekDates[thisWeekDates.length - 1].getMonth() + 1}/${thisWeekDates[thisWeekDates.length - 1].getDate()}`;
+                html += `<h3 style="margin-top: 10px; border-bottom: 2px solid #06C755; padding-bottom: 5px; font-size: 16px;">今週のシフト (${s} 〜 ${e})</h3>`;
+
+                if (thisWeekLocked) {
+                    html += getLockedMessageHtml("今週");
+                } else {
+                    html += generateDaysHtml(thisWeekDates);
+                }
+            }
+
+            // 来週ブロックの描画
+            const ns = `${nextWeekDates[0].getMonth() + 1}/${nextWeekDates[0].getDate()}`;
+            const ne = `${nextWeekDates[nextWeekDates.length - 1].getMonth() + 1}/${nextWeekDates[nextWeekDates.length - 1].getDate()}`;
+            html += `<h3 style="margin-top: 30px; border-bottom: 2px solid #06C755; padding-bottom: 5px; font-size: 16px;">来週のシフト (${ns} 〜 ${ne})</h3>`;
+
+            if (nextWeekLocked) {
+                html += getLockedMessageHtml("来週");
+            } else {
+                html += generateDaysHtml(nextWeekDates);
+            }
+
+            container.innerHTML = html;
+
+            // 送信ボタンの制御（両方ロックなら隠す、どちらか開いていれば表示）
+            if ((thisWeekDates.length > 0 && !thisWeekLocked) || !nextWeekLocked) {
+                submitBtn.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = "シフトを提出する";
+            } else {
+                submitBtn.style.display = 'none';
+            }
+        }
+    })
+    .catch(err => {
+        console.error("データ確認エラー:", err);
+        container.innerHTML = '<p style="text-align: center; color: red;">データの読み込みに失敗しました。</p>';
+    });
+}
+
+// カレンダー部分のHTML生成関数
+function generateDaysHtml(datesArray) {
     const daysOfWeekArray = ["日", "月", "火", "水", "木", "金", "土"];
     const timeOptions = generateTimeOptions();
-    
-    // 動的に明日〜来週日曜日の日付を取得
-    const targetDates = getShiftTargetDates();
+    let html = '';
 
-    const startMonth = targetDates[0].getMonth() + 1;
-    const startDate = targetDates[0].getDate();
-    const endMonth = targetDates[targetDates.length - 1].getMonth() + 1;
-    const endDate = targetDates[targetDates.length - 1].getDate();
-    
-    // 【判別用】新しいプログラムが確実に読み込まれているか分かるように「最新版」と表示します
-    document.getElementById('target-week-title').textContent = 
-        `【最新版】対象期間: ${startMonth}/${startDate} 〜 ${endMonth}/${endDate}`;
-
-    targetDates.forEach((date) => {
+    datesArray.forEach((date) => {
         const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
         const fullDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        const dayStr = daysOfWeekArray[date.getDay()]; 
+        const dayStr = daysOfWeekArray[date.getDay()];
 
-        const html = `
-            <div class="day-row">
-                <div class="day-label">${dateStr} (${dayStr})</div>
-                <div class="time-selects">
-                    <select class="start-time" data-date="${fullDateStr}">
+        // styleタグを直接入れてレイアウト崩れを防止
+        html += `
+            <div class="day-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+                <div class="day-label" style="font-size: 14px; font-weight: bold; width: 35%;">${dateStr} (${dayStr})</div>
+                <div class="time-selects" style="width: 65%; display: flex; justify-content: flex-end; align-items: center;">
+                    <select class="start-time" data-date="${fullDateStr}" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px;">
                         ${timeOptions}
                     </select>
-                    <span class="time-separator">〜</span>
-                    <select class="end-time" data-date="${fullDateStr}">
+                    <span class="time-separator" style="margin: 0 5px; color: #666;">〜</span>
+                    <select class="end-time" data-date="${fullDateStr}" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px;">
                         ${timeOptions}
                     </select>
                 </div>
             </div>
         `;
-        container.insertAdjacentHTML('beforeend', html);
     });
+    return html;
 }
 
-// シフト提出データをGASへ送信（POST）
 function submitShiftData() {
     const savedName = localStorage.getItem('castGenjiName');
     const shifts = [];
     const startElements = document.querySelectorAll('.start-time');
     const endElements = document.querySelectorAll('.end-time');
 
+    // ロックされていない（画面に表示されている）入力項目だけを取得
     startElements.forEach((startEl, index) => {
         const endEl = endElements[index];
         shifts.push({
@@ -255,6 +253,11 @@ function submitShiftData() {
             end: endEl.value
         });
     });
+
+    if (shifts.length === 0) {
+        alert("送信するシフトデータがありません。");
+        return;
+    }
 
     const submitData = { castName: savedName, shiftData: shifts };
     const submitBtn = document.getElementById('submit-shift-btn');
@@ -270,7 +273,7 @@ function submitShiftData() {
     .then(() => {
         alert("シフトの提出が完了しました！");
         submitBtn.textContent = "提出完了";
-        checkRegistration(); // 提出完了後に画面をロック状態へ移行
+        checkRegistration(); // 画面を再描画して最新のロック状態に更新
     })
     .catch(err => {
         console.error("送信エラー:", err);
@@ -280,7 +283,6 @@ function submitShiftData() {
     });
 }
 
-// 提出済みシフトをGASから取得（GET）して画面に表示
 function fetchViewShifts() {
     const savedName = localStorage.getItem('castGenjiName');
     const container = document.getElementById('shift-list-container');
