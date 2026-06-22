@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     document.getElementById('tab-view').addEventListener('click', () => {
         switchTab('view');
-        fetchViewShifts(); // 閲覧タブが開かれたらデータを取得
+        fetchViewShifts(); 
     });
 });
 
@@ -45,11 +45,59 @@ function checkRegistration() {
         document.getElementById('register-section').style.display = 'none';
         document.getElementById('shift-section').style.display = 'block';
         document.getElementById('display-genji-name').textContent = savedName;
-        generateShiftForm();
+        
+        generateShiftForm(); // フォーム（カレンダー）を生成
+        prefillShiftForm();  // 【追加】GASから過去データを引っ張ってきて自動セットする
     } else {
         document.getElementById('register-section').style.display = 'block';
         document.getElementById('shift-section').style.display = 'none';
     }
+}
+
+// フォーム生成後、過去の提出データを自動で入力する関数
+function prefillShiftForm() {
+    const savedName = localStorage.getItem('castGenjiName');
+    const url = `${GAS_WEB_APP_URL}?castName=${encodeURIComponent(savedName)}`;
+    
+    // 読み込み中はボタンを押せないようにして、文字を変更する
+    const submitBtn = document.getElementById('submit-shift-btn');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = "過去のデータを読み込み中...";
+    submitBtn.disabled = true;
+
+    fetch(url)
+    .then(res => res.json())
+    .then(resData => {
+        if (resData.status === "success") {
+            const data = resData.data;
+            const startElements = document.querySelectorAll('.start-time');
+            const endElements = document.querySelectorAll('.end-time');
+            
+            startElements.forEach((startEl, index) => {
+                const endEl = endElements[index];
+                const dateStr = startEl.getAttribute('data-date'); // 例: "2026-06-22"
+                
+                // 取得したデータの中から、この日と同じ日付の提出済みシフトを探す
+                const existingShift = data.find(shift => {
+                    const d = new Date(shift.dateValue);
+                    const shiftDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                    return shiftDateStr === dateStr;
+                });
+                
+                // データがあれば、プルダウンの値をそれに書き換える
+                if (existingShift) {
+                    startEl.value = existingShift.start || "";
+                    endEl.value = existingShift.end || "";
+                }
+            });
+        }
+    })
+    .catch(err => console.error("自動入力エラー:", err))
+    .finally(() => {
+        // 処理が終わったらボタンを元の状態に戻す
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    });
 }
 
 // タブの表示切り替えロジック
@@ -190,7 +238,6 @@ function fetchViewShifts() {
     const container = document.getElementById('shift-list-container');
     container.innerHTML = '<p style="text-align: center; color: #888;">読み込み中...</p>';
 
-    // URLに名前を乗せてGETリクエストを送信
     const url = `${GAS_WEB_APP_URL}?castName=${encodeURIComponent(savedName)}`;
 
     fetch(url)
@@ -203,9 +250,8 @@ function fetchViewShifts() {
                 return;
             }
 
-            container.innerHTML = ""; // 初期化
+            container.innerHTML = ""; 
             data.forEach(shift => {
-                // 片方だけ入力されている場合も考慮して表示を生成
                 let timeStr = "休み";
                 if (shift.start || shift.end) {
                     const startText = shift.start || "未定";
