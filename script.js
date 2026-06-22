@@ -97,7 +97,7 @@ function prefillShiftForm() {
                 });
                 
                 if (existingShift) {
-                    alreadySubmitted = true; // 表示期間のシフトが1日でも存在すればロックフラグを立てる
+                    alreadySubmitted = true;
                 }
             });
 
@@ -159,7 +159,7 @@ function switchTab(type) {
     }
 }
 
-// 【新規追加】明日から来週の日曜日までの日付配列を計算して生成する関数
+// 明日から来週の日曜日までの日付配列を計算して生成する関数
 function getShiftTargetDates() {
     const today = new Date();
     
@@ -212,13 +212,15 @@ function generateShiftForm() {
     const startDate = targetDates[0].getDate();
     const endMonth = targetDates[targetDates.length - 1].getMonth() + 1;
     const endDate = targetDates[targetDates.length - 1].getDate();
+    
+    // 【判別用】新しいプログラムが確実に読み込まれているか分かるように「最新版」と表示します
     document.getElementById('target-week-title').textContent = 
-        `対象期間: ${startMonth}/${startDate} 〜 ${endMonth}/${endDate}`;
+        `【最新版】対象期間: ${startMonth}/${startDate} 〜 ${endMonth}/${endDate}`;
 
     targetDates.forEach((date) => {
         const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
         const fullDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        const dayStr = daysOfWeekArray[date.getDay()]; // 日付オブジェクトから曜日を取得
+        const dayStr = daysOfWeekArray[date.getDay()]; 
 
         const html = `
             <div class="day-row">
