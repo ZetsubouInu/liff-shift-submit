@@ -46,12 +46,27 @@ function checkRegistration() {
         document.getElementById('shift-section').style.display = 'block';
         document.getElementById('display-genji-name').textContent = savedName;
         
-        generateShiftForm(); // フォーム（カレンダー）を生成
-        prefillShiftForm();  // 過去データを引っ張ってきて自動セット
+        generateShiftForm(); 
+        prefillShiftForm();  
     } else {
         document.getElementById('register-section').style.display = 'block';
         document.getElementById('shift-section').style.display = 'none';
     }
+}
+
+// 【追加】スプレッドシートの「03:00」などを「27:00」に戻す関数
+function normalizeTime(timeStr) {
+    if (!timeStr) return "";
+    const parts = timeStr.split(":");
+    if (parts.length >= 2) {
+        let h = parseInt(parts[0], 10);
+        // スプレッドシート側で 0:00 〜 5:00 になってしまった時間を 24:00 〜 29:00 に戻す
+        if (h >= 0 && h <= 5) {
+            h += 24;
+            return `${h}:${parts[1]}`;
+        }
+    }
+    return timeStr;
 }
 
 // フォーム生成後、過去の提出データを自動で入力する関数
@@ -83,8 +98,9 @@ function prefillShiftForm() {
                 });
                 
                 if (existingShift) {
-                    startEl.value = existingShift.start || "";
-                    endEl.value = existingShift.end || "";
+                    // normalizeTimeを挟むことで、27:00が空白になるバグを解消
+                    startEl.value = normalizeTime(existingShift.start) || "";
+                    endEl.value = normalizeTime(existingShift.end) || "";
                 }
             });
         }
@@ -139,16 +155,15 @@ function generateTargetWeekDates(baseDate) {
     return dates;
 }
 
-// プルダウンの選択肢を生成する関数（LASTを追加）
+// プルダウンの選択肢を生成する関数
 function generateTimeOptions() {
     let options = '<option value="">休み</option>';
-    options += '<option value="27:00">LAST</option>'; // 【追加】休みのすぐ下にLASTを配置
+    options += '<option value="27:00">LAST</option>'; 
     
-    for (let hour = 18; hour <= 27; hour++) {
+    // 【修正】一番下に「27:00」が重複して作られるのを防ぐため、26:30までループさせる
+    for (let hour = 18; hour <= 26; hour++) {
         options += `<option value="${hour}:00">${hour}:00</option>`;
-        if (hour !== 27) {
-            options += `<option value="${hour}:30">${hour}:30</option>`;
-        }
+        options += `<option value="${hour}:30">${hour}:30</option>`;
     }
     return options;
 }
@@ -253,9 +268,11 @@ function fetchViewShifts() {
             data.forEach(shift => {
                 let timeStr = "休み";
                 if (shift.start || shift.end) {
-                    // 【追加】閲覧画面でも「27:00」を「LAST」に変換して見やすくする
-                    const startText = shift.start === "27:00" ? "LAST" : (shift.start || "未定");
-                    const endText = shift.end === "27:00" ? "LAST" : (shift.end || "未定");
+                    // ここでも normalizeTime を通すことで閲覧リスト側も正常に表示されます
+                    let s = normalizeTime(shift.start);
+                    let e = normalizeTime(shift.end);
+                    const startText = s === "27:00" ? "LAST" : (s || "未定");
+                    const endText = e === "27:00" ? "LAST" : (e || "未定");
                     timeStr = `${startText} 〜 ${endText}`;
                 }
 
