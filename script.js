@@ -47,20 +47,19 @@ function checkRegistration() {
         document.getElementById('display-genji-name').textContent = savedName;
         
         generateShiftForm(); 
-        prefillShiftForm();  
+        prefillShiftForm();  // データ確認とロック処理を実行
     } else {
         document.getElementById('register-section').style.display = 'block';
         document.getElementById('shift-section').style.display = 'none';
     }
 }
 
-// 【追加】スプレッドシートの「03:00」などを「27:00」に戻す関数
+// 時間の正規化関数（スプレッドシートの仕様対策）
 function normalizeTime(timeStr) {
     if (!timeStr) return "";
     const parts = timeStr.split(":");
     if (parts.length >= 2) {
         let h = parseInt(parts[0], 10);
-        // スプレッドシート側で 0:00 〜 5:00 になってしまった時間を 24:00 〜 29:00 に戻す
         if (h >= 0 && h <= 5) {
             h += 24;
             return `${h}:${parts[1]}`;
@@ -69,14 +68,14 @@ function normalizeTime(timeStr) {
     return timeStr;
 }
 
-// フォーム生成後、過去の提出データを自動で入力する関数
+// 過去データを確認し、すでに提出済みならフォームをロックする関数
 function prefillShiftForm() {
     const savedName = localStorage.getItem('castGenjiName');
     const url = `${GAS_WEB_APP_URL}?castName=${encodeURIComponent(savedName)}`;
     
     const submitBtn = document.getElementById('submit-shift-btn');
     const originalText = submitBtn.textContent;
-    submitBtn.textContent = "過去のデータを読み込み中...";
+    submitBtn.textContent = "提出状況を確認中...";
     submitBtn.disabled = true;
 
     fetch(url)
@@ -85,10 +84,11 @@ function prefillShiftForm() {
         if (resData.status === "success") {
             const data = resData.data;
             const startElements = document.querySelectorAll('.start-time');
-            const endElements = document.querySelectorAll('.end-time');
             
-            startElements.forEach((startEl, index) => {
-                const endEl = endElements[index];
+            let alreadySubmitted = false;
+
+            // フォーム内の日付（来週の月〜日）に該当する提出済みデータが1つでもあるかチェック
+            startElements.forEach((startEl) => {
                 const dateStr = startEl.getAttribute('data-date');
                 
                 const existingShift = data.find(shift => {
@@ -98,16 +98,46 @@ function prefillShiftForm() {
                 });
                 
                 if (existingShift) {
-                    // normalizeTimeを挟むことで、27:00が空白になるバグを解消
-                    startEl.value = normalizeTime(existingShift.start) || "";
-                    endEl.value = normalizeTime(existingShift.end) || "";
+                    alreadySubmitted = true;
                 }
             });
+
+            const calendarContainer = document.getElementById('calendar-container');
+
+            if (alreadySubmitted) {
+                // 【ロック処理】すでに提出済みの場合はカレンダーとボタンを隠し、案内メッセージを表示する
+                calendarContainer.style.display = 'none';
+                submitBtn.style.display = 'none';
+
+                let msgDiv = document.getElementById('submitted-message');
+                if (!msgDiv) {
+                    msgDiv = document.createElement('div');
+                    msgDiv.id = 'submitted-message';
+                    msgDiv.innerHTML = `
+                        <div style="background: #fff3cd; border: 1px solid #ffeeba; color: #856404; padding: 15px; border-radius: 5px; margin: 20px 0; text-align: center;">
+                            <p style="font-weight: bold; margin-bottom: 10px;">✅ 来週のシフトは提出済みです</p>
+                            <p style="font-size: 14px; margin: 0;">シフト変更したい場合、<br><span style="color: red; font-weight: bold;">トークルームに直接入力をお願いします！</span></p>
+                        </div>
+                    `;
+                    document.getElementById('sector-submit').appendChild(msgDiv);
+                }
+                msgDiv.style.display = 'block';
+
+            } else {
+                // まだ提出していない場合は通常通りフォームを表示させる
+                calendarContainer.style.display = 'block';
+                submitBtn.style.display = 'block';
+                submitBtn.textContent = "シフトを提出する";
+                submitBtn.disabled = false;
+                
+                const msgDiv = document.getElementById('submitted-message');
+                if (msgDiv) msgDiv.style.display = 'none';
+            }
         }
     })
-    .catch(err => console.error("自動入力エラー:", err))
-    .finally(() => {
-        submitBtn.textContent = originalText;
+    .catch(err => {
+        console.error("データ確認エラー:", err);
+        submitBtn.textContent = "シフトを提出する";
         submitBtn.disabled = false;
     });
 }
@@ -160,7 +190,6 @@ function generateTimeOptions() {
     let options = '<option value="">休み</option>';
     options += '<option value="27:00">LAST</option>'; 
     
-    // 【修正】一番下に「27:00」が重複して作られるのを防ぐため、26:30までループさせる
     for (let hour = 18; hour <= 26; hour++) {
         options += `<option value="${hour}:00">${hour}:00</option>`;
         options += `<option value="${hour}:30">${hour}:30</option>`;
@@ -236,7 +265,9 @@ function submitShiftData() {
     .then(() => {
         alert("シフトの提出が完了しました！");
         submitBtn.textContent = "提出完了";
-        if (liff.isInClient()) { liff.closeWindow(); }
+        
+        // 提出完了後、画面を再描画してロック状態にする
+        checkRegistration();
     })
     .catch(err => {
         console.error("送信エラー:", err);
@@ -268,7 +299,6 @@ function fetchViewShifts() {
             data.forEach(shift => {
                 let timeStr = "休み";
                 if (shift.start || shift.end) {
-                    // ここでも normalizeTime を通すことで閲覧リスト側も正常に表示されます
                     let s = normalizeTime(shift.start);
                     let e = normalizeTime(shift.end);
                     const startText = s === "27:00" ? "LAST" : (s || "未定");
