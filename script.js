@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         checkRegistration(); // 画面を切り替える
     });
 
-    // 3. 提出ボタンのイベント（今回はコンソール表示まで）
+    // 3. 提出ボタンのイベント
     document.getElementById('submit-shift-btn').addEventListener('click', () => {
         submitShiftData();
     });
@@ -136,12 +136,11 @@ function generateShiftForm() {
     });
 }
 
-// 提出データをまとめる関数（今後のGAS連携用）
+// 提出データをGASへ送信する関数
 function submitShiftData() {
     const savedName = localStorage.getItem('castGenjiName');
     const shifts = [];
 
-    // クラス名から各曜日の入力データを取得
     const startElements = document.querySelectorAll('.start-time');
     const endElements = document.querySelectorAll('.end-time');
 
@@ -154,13 +153,40 @@ function submitShiftData() {
         });
     });
 
-    // まとめたデータをオブジェクトにする
     const submitData = {
         castName: savedName,
         shiftData: shifts
     };
 
-    // 現段階ではブラウザのコンソールに表示するだけ
-    console.log("送信データ:", submitData);
-    alert("シフトをまとめました。裏側の連携処理はこれから実装します。");
+    // ボタンの連打防止
+    const submitBtn = document.getElementById('submit-shift-btn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = "送信中...";
+
+    // 【重要】ここにGASの「ウェブアプリのURL」を貼り付けてください
+    const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyQfJe2XlHcUt5WWl7YEiggAGjJarZJ4U46g3ekrZ7xpAqB5eoQqr1437fTGSenw-JIOg/exec";
+
+    // GASへデータをPOST送信
+    fetch(GAS_WEB_APP_URL, {
+        method: "POST",
+        mode: "no-cors", // クロスドメイン通信のエラーを回避するための設定
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(submitData)
+    })
+    .then(() => {
+        alert("シフトの提出が完了しました！");
+        submitBtn.textContent = "提出完了";
+        // LINEの画面を自動で閉じる（LINEアプリ内限定の機能）
+        if (liff.isInClient()) {
+            liff.closeWindow();
+        }
+    })
+    .catch(err => {
+        console.error("送信エラー:", err);
+        alert("送信に失敗しました。電波状況の良い場所で再度お試しください。");
+        submitBtn.disabled = false;
+        submitBtn.textContent = "シフトを提出する";
+    });
 }
