@@ -1,6 +1,6 @@
 // ご指定のLIFF IDとGASウェブアプリURLを設定済みです
 const LIFF_ID = "2010473243-llp7zgX9";
-const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbyQfJe2XlHcUt5WWl7YEiggAGjJarZJ4U46g3ekrZ7xpAqB5eoQqr1437fTGSenw-JIOg/exec";
+const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbypCrFMOhWZa-RyJHdBPKjmZ6dP-YCZXcLrXBnxWmzPWTdNmvjvpDc66wYhf38GZv9U/exec";
 
 document.addEventListener('DOMContentLoaded', () => {
     liff.init({ liffId: LIFF_ID }).then(() => {
