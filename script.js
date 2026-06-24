@@ -80,18 +80,19 @@ function switchTab(type) {
     }
 }
 
-function generateTimeOptions() {
+// 【修正】開始時間を引数（startHour）で受け取れるように変更
+function generateTimeOptions(startHour) {
     let options = '<option value="">休み</option>';
     options += '<option value="27:00">LAST</option>'; 
     
-    for (let hour = 18; hour <= 26; hour++) {
+    for (let hour = startHour; hour <= 26; hour++) {
         options += `<option value="${hour}:00">${hour}:00</option>`;
         options += `<option value="${hour}:30">${hour}:30</option>`;
     }
     return options;
 }
 
-// 【新規】データ取得と「今週」「来週」のブロック分割生成を行う関数
+// データ取得と「今週」「来週」のブロック分割生成を行う関数
 function fetchAndRenderShiftForm() {
     const savedName = localStorage.getItem('castGenjiName');
     const url = `${GAS_WEB_APP_URL}?castName=${encodeURIComponent(savedName)}`;
@@ -211,18 +212,36 @@ function fetchAndRenderShiftForm() {
 // カレンダー部分のHTML生成関数
 function generateDaysHtml(datesArray) {
     const daysOfWeekArray = ["日", "月", "火", "水", "木", "金", "土"];
-    const timeOptions = generateTimeOptions();
     let html = '';
 
     datesArray.forEach((date) => {
         const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
         const fullDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        const dayStr = daysOfWeekArray[date.getDay()];
+        const dayOfWeek = date.getDay(); // 0:日, 1:月, 2:火, 3:水, 4:木, 5:金, 6:土
+        const dayStr = daysOfWeekArray[dayOfWeek];
 
-        // styleタグを直接入れてレイアウト崩れを防止
         html += `
             <div class="day-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
                 <div class="day-label" style="font-size: 14px; font-weight: bold; width: 35%;">${dateStr} (${dayStr})</div>
+        `;
+
+        // 【修正】曜日ごとの表示・選択肢の切り替え
+        if (dayOfWeek === 1) {
+            // 月曜日の場合（定休日）
+            html += `
+                <div class="time-selects" style="width: 65%; display: flex; justify-content: flex-end; align-items: center;">
+                    <span style="color: #ff3b30; font-weight: bold; font-size: 14px; padding-right: 10px;">定休日</span>
+                    <input type="hidden" class="start-time" data-date="${fullDateStr}" value="">
+                    <input type="hidden" class="end-time" data-date="${fullDateStr}" value="">
+                </div>
+            `;
+        } else {
+            // 月曜日以外の場合（通常営業）
+            // 土日（0 or 6）の場合は15時から、平日の場合は18時から生成
+            const startHour = (dayOfWeek === 0 || dayOfWeek === 6) ? 15 : 18;
+            const timeOptions = generateTimeOptions(startHour);
+
+            html += `
                 <div class="time-selects" style="width: 65%; display: flex; justify-content: flex-end; align-items: center;">
                     <select class="start-time" data-date="${fullDateStr}" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc; font-size: 14px;">
                         ${timeOptions}
@@ -232,8 +251,10 @@ function generateDaysHtml(datesArray) {
                         ${timeOptions}
                     </select>
                 </div>
-            </div>
-        `;
+            `;
+        }
+        
+        html += `</div>`; // .day-row の閉じタグ
     });
     return html;
 }

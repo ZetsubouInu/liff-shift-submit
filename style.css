@@ -99,23 +99,37 @@ select {
     color: #666;
 }
 
+/* ▼▼▼ 送信ボタンのスタイルを修正 ▼▼▼ */
 .primary-btn {
     display: block;
-    width: 100%;
-    background-color: #06C755; /* LINEカラー */
+    width: 80%; /* 100%から絞ることで中央配置を際立たせる */
+    margin: 30px auto 10px auto; /* 左右のmarginをautoにして中央揃え */
+    background: linear-gradient(135deg, #06C755, #02b34a); /* 鮮やかなグラデーション */
     color: #fff;
     border: none;
-    padding: 15px;
+    padding: 16px;
     font-size: 16px;
     font-weight: bold;
-    border-radius: 8px;
+    border-radius: 30px; /* 丸みを持たせてアプリ風に */
     cursor: pointer;
-    margin-top: 10px;
+    box-shadow: 0 4px 12px rgba(6, 199, 85, 0.3); /* 影をつけて浮き上がらせる */
+    text-align: center;
+    transition: all 0.2s ease; /* 押した時のアニメーションを滑らかに */
 }
 
 .primary-btn:active {
-    background-color: #05a546;
+    transform: translateY(2px); /* 押した時に少し沈むアクション */
+    box-shadow: 0 2px 6px rgba(6, 199, 85, 0.3);
 }
+
+/* 送信中（非アクティブ時）のスタイル */
+.primary-btn:disabled {
+    background: #cccccc;
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+}
+/* ▲▲▲ ここまで ▲▲▲ */
 
 /* タブメニューのスタイル */
 .tab-container {
