@@ -41,7 +41,7 @@ function checkRegistration() {
         document.getElementById('shift-section').style.display = 'block';
         document.getElementById('display-genji-name').textContent = savedName;
         
-        fetchAndRenderShiftForm(); // 統合した新しい関数を呼び出す
+        fetchAndRenderShiftForm(); 
     } else {
         document.getElementById('register-section').style.display = 'block';
         document.getElementById('shift-section').style.display = 'none';
@@ -80,7 +80,6 @@ function switchTab(type) {
     }
 }
 
-// 【修正】開始時間を引数（startHour）で受け取れるように変更
 function generateTimeOptions(startHour) {
     let options = '<option value="">休み</option>';
     options += '<option value="27:00">LAST</option>'; 
@@ -97,29 +96,34 @@ function fetchAndRenderShiftForm() {
     const savedName = localStorage.getItem('castGenjiName');
     const url = `${GAS_WEB_APP_URL}?castName=${encodeURIComponent(savedName)}`;
     
+    // ▼ 追加：日本の祝日データを取得するためのAPI URL
+    const holidayApiUrl = "https://holidays-jp.github.io/api/v1/date.json";
+    
     const container = document.getElementById('calendar-container');
     const submitBtn = document.getElementById('submit-shift-btn');
     const titleEl = document.getElementById('target-week-title');
 
-    // 初期表示リセット
-    if (titleEl) titleEl.style.display = 'none'; // 古い見出しは非表示
+    if (titleEl) titleEl.style.display = 'none'; 
     container.innerHTML = '<p style="text-align: center; padding: 20px;">提出状況を確認中...</p>';
     submitBtn.style.display = 'none';
 
-    fetch(url)
-    .then(res => res.json())
-    .then(resData => {
+    // ▼ 修正：シフトデータと祝日データを「同時」に読み込む
+    Promise.all([
+        fetch(url).then(res => res.json()),
+        fetch(holidayApiUrl).then(res => res.json()).catch(() => ({})) // 祝日APIが万が一落ちていてもエラーで止まらないようにする
+    ])
+    .then(([resData, holidayData]) => {
         if (resData.status === "success") {
             const fetchedData = resData.data;
 
             // --- 日付の計算 ---
             const today = new Date();
-            const dayOfWeek = today.getDay(); // 0:日, 1:月...
+            const dayOfWeek = today.getDay(); 
             const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
 
-            // ① 今週の配列（明日 〜 今週の日曜日）
+            // ① 今週の配列
             const thisWeekDates = [];
-            if (dayOfWeek !== 0) { // 今日が日曜日でなければ生成
+            if (dayOfWeek !== 0) { 
                 const daysToSunday = 7 - dayOfWeek;
                 const thisSunday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysToSunday);
                 let curr = new Date(tomorrow);
@@ -129,7 +133,7 @@ function fetchAndRenderShiftForm() {
                 }
             }
 
-            // ② 来週の配列（来週の月曜日 〜 来週の日曜日）
+            // ② 来週の配列
             const nextWeekDates = [];
             const daysToNextMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
             const nextMonday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysToNextMonday);
@@ -140,7 +144,6 @@ function fetchAndRenderShiftForm() {
                 curr2.setDate(curr2.getDate() + 1);
             }
 
-            // --- 提出済み（ロック）の判定 ---
             function hasSubmission(dateArray) {
                 return dateArray.some(dateObj => {
                     const dateStr = `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
@@ -155,7 +158,6 @@ function fetchAndRenderShiftForm() {
             const thisWeekLocked = hasSubmission(thisWeekDates);
             const nextWeekLocked = hasSubmission(nextWeekDates);
 
-            // --- HTMLの組み立て ---
             let html = "";
 
             function getLockedMessageHtml(label) {
@@ -167,7 +169,7 @@ function fetchAndRenderShiftForm() {
                 `;
             }
 
-            // 今週ブロックの描画
+            // 今週ブロックの描画（引数にholidayDataを追加）
             if (thisWeekDates.length > 0) {
                 const s = `${thisWeekDates[0].getMonth() + 1}/${thisWeekDates[0].getDate()}`;
                 const e = `${thisWeekDates[thisWeekDates.length - 1].getMonth() + 1}/${thisWeekDates[thisWeekDates.length - 1].getDate()}`;
@@ -176,11 +178,11 @@ function fetchAndRenderShiftForm() {
                 if (thisWeekLocked) {
                     html += getLockedMessageHtml("今週");
                 } else {
-                    html += generateDaysHtml(thisWeekDates);
+                    html += generateDaysHtml(thisWeekDates, holidayData);
                 }
             }
 
-            // 来週ブロックの描画
+            // 来週ブロックの描画（引数にholidayDataを追加）
             const ns = `${nextWeekDates[0].getMonth() + 1}/${nextWeekDates[0].getDate()}`;
             const ne = `${nextWeekDates[nextWeekDates.length - 1].getMonth() + 1}/${nextWeekDates[nextWeekDates.length - 1].getDate()}`;
             html += `<h3 style="margin-top: 30px; border-bottom: 2px solid #06C755; padding-bottom: 5px; font-size: 16px;">来週のシフト (${ns} 〜 ${ne})</h3>`;
@@ -188,12 +190,11 @@ function fetchAndRenderShiftForm() {
             if (nextWeekLocked) {
                 html += getLockedMessageHtml("来週");
             } else {
-                html += generateDaysHtml(nextWeekDates);
+                html += generateDaysHtml(nextWeekDates, holidayData);
             }
 
             container.innerHTML = html;
 
-            // 送信ボタンの制御（両方ロックなら隠す、どちらか開いていれば表示）
             if ((thisWeekDates.length > 0 && !thisWeekLocked) || !nextWeekLocked) {
                 submitBtn.style.display = 'block';
                 submitBtn.disabled = false;
@@ -209,25 +210,32 @@ function fetchAndRenderShiftForm() {
     });
 }
 
-// カレンダー部分のHTML生成関数
-function generateDaysHtml(datesArray) {
+// カレンダー部分のHTML生成関数（holidayDataを受け取るように修正）
+function generateDaysHtml(datesArray, holidayData) {
     const daysOfWeekArray = ["日", "月", "火", "水", "木", "金", "土"];
     let html = '';
 
     datesArray.forEach((date) => {
         const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
         const fullDateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-        const dayOfWeek = date.getDay(); // 0:日, 1:月, 2:火, 3:水, 4:木, 5:金, 6:土
+        const dayOfWeek = date.getDay(); 
         const dayStr = daysOfWeekArray[dayOfWeek];
+
+        // ▼ 追加：翌日の日付を計算して祝日かどうかチェックする
+        const tomorrow = new Date(date);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+        
+        // holidayDataの中に翌日の日付があれば true（祝日）、なければ false
+        const isTomorrowHoliday = !!holidayData[tomorrowStr];
 
         html += `
             <div class="day-row" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
                 <div class="day-label" style="font-size: 14px; font-weight: bold; width: 35%;">${dateStr} (${dayStr})</div>
         `;
 
-        // 【修正】曜日ごとの表示・選択肢の切り替え
-        if (dayOfWeek === 1) {
-            // 月曜日の場合（定休日）
+        // ▼ 修正：月曜日 かつ 「翌日が祝日ではない」場合のみ定休日にする
+        if (dayOfWeek === 1 && !isTomorrowHoliday) {
             html += `
                 <div class="time-selects" style="width: 65%; display: flex; justify-content: flex-end; align-items: center;">
                     <span style="color: #ff3b30; font-weight: bold; font-size: 14px; padding-right: 10px;">定休日</span>
@@ -236,8 +244,11 @@ function generateDaysHtml(datesArray) {
                 </div>
             `;
         } else {
-            // 月曜日以外の場合（通常営業）
-            // 土日（0 or 6）の場合は15時から、平日の場合は18時から生成
+            // 通常営業（または翌日が祝日の月曜日）
+            
+            // 祝日前の月曜日は「18時〜」の平日扱いにしていますが、
+            // もし週末のように「15時〜」にしたい場合は、下の行を以下のように書き換えてください。
+            // const startHour = (dayOfWeek === 0 || dayOfWeek === 6 || (dayOfWeek === 1 && isTomorrowHoliday)) ? 15 : 18;
             const startHour = (dayOfWeek === 0 || dayOfWeek === 6) ? 15 : 18;
             const timeOptions = generateTimeOptions(startHour);
 
@@ -254,7 +265,7 @@ function generateDaysHtml(datesArray) {
             `;
         }
         
-        html += `</div>`; // .day-row の閉じタグ
+        html += `</div>`; 
     });
     return html;
 }
@@ -265,7 +276,6 @@ function submitShiftData() {
     const startElements = document.querySelectorAll('.start-time');
     const endElements = document.querySelectorAll('.end-time');
 
-    // ロックされていない（画面に表示されている）入力項目だけを取得
     startElements.forEach((startEl, index) => {
         const endEl = endElements[index];
         shifts.push({
@@ -294,7 +304,7 @@ function submitShiftData() {
     .then(() => {
         alert("シフトの提出が完了しました！");
         submitBtn.textContent = "提出完了";
-        checkRegistration(); // 画面を再描画して最新のロック状態に更新
+        checkRegistration(); 
     })
     .catch(err => {
         console.error("送信エラー:", err);
