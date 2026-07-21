@@ -91,7 +91,7 @@ function generateTimeOptions(startHour) {
     return options;
 }
 
-// データ取得と「来週」のブロック生成、および締め切り処理を行う関数
+// データ取得と「対象週」のブロック生成、および締め切り処理を行う関数
 function fetchAndRenderShiftForm() {
     const savedName = localStorage.getItem('castGenjiName');
     const url = `${GAS_WEB_APP_URL}?castName=${encodeURIComponent(savedName)}`;
@@ -117,26 +117,35 @@ function fetchAndRenderShiftForm() {
             const today = new Date();
             const dayOfWeek = today.getDay(); // 0:日, 1:月, 2:火, 3:水, 4:木, 5:金, 6:土
 
-            // ▼ 追加：締め切り判定（金・土・日の場合はフォームを出さずメッセージを表示）
-            if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0) {
-                container.innerHTML = `
-                    <div style="text-align: center; margin-top: 30px; line-height: 1.6;">
-                        <p style="color: #e53e3e; font-weight: bold; font-size: 16px;">追加シフト・修正があったら<br>トークルームに直接送信をお願いいたします！</p>
+            // 金・土・日の判定（週末モード）
+            const isWeekendMode = (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0);
+            let html = "";
+
+            // 週末に開いた場合のみ、画面上部にメッセージを表示する
+            if (isWeekendMode) {
+                html += `
+                    <div style="background: #fee2e2; border: 1px solid #fca5a5; padding: 15px; border-radius: 5px; text-align: center; margin-bottom: 20px; line-height: 1.6;">
+                        <p style="color: #c53030; font-weight: bold; font-size: 14px; margin: 0;">来週の追加シフト・修正があったら<br>トークルームに直接送信をお願いいたします！</p>
                     </div>
                 `;
-                submitBtn.style.display = 'none';
-                return; // ここで処理を終了し、カレンダーを作らせない
             }
 
-            // ▼ 今週分を削除し、来週の配列のみを生成する
-            const nextWeekDates = [];
-            const daysToNextMonday = 8 - dayOfWeek;
-            const nextMonday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysToNextMonday);
-            const nextSunday = new Date(nextMonday.getFullYear(), nextMonday.getMonth(), nextMonday.getDate() + 6);
+            // 対象週（月曜〜日曜）の日付配列を生成する
+            const targetWeekDates = [];
+            // 日曜(0)なら翌日(+1)、月〜土(1〜6)なら次の月曜までの日数(8-曜日)
+            let daysToNextMonday = (dayOfWeek === 0) ? 1 : (8 - dayOfWeek);
             
-            let curr = new Date(nextMonday);
-            while (curr <= nextSunday) {
-                nextWeekDates.push(new Date(curr));
+            // 金・土・日の場合は「再来週」にするため、さらに7日足す
+            if (isWeekendMode) {
+                daysToNextMonday += 7;
+            }
+
+            const targetMonday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + daysToNextMonday);
+            const targetSunday = new Date(targetMonday.getFullYear(), targetMonday.getMonth(), targetMonday.getDate() + 6);
+            
+            let curr = new Date(targetMonday);
+            while (curr <= targetSunday) {
+                targetWeekDates.push(new Date(curr));
                 curr.setDate(curr.getDate() + 1);
             }
 
@@ -151,8 +160,7 @@ function fetchAndRenderShiftForm() {
                 });
             }
 
-            const nextWeekLocked = hasSubmission(nextWeekDates);
-            let html = "";
+            const targetWeekLocked = hasSubmission(targetWeekDates);
 
             function getLockedMessageHtml(label) {
                 return `
@@ -163,20 +171,22 @@ function fetchAndRenderShiftForm() {
                 `;
             }
 
-            // 来週ブロックの描画
-            const ns = `${nextWeekDates[0].getMonth() + 1}/${nextWeekDates[0].getDate()}`;
-            const ne = `${nextWeekDates[nextWeekDates.length - 1].getMonth() + 1}/${nextWeekDates[nextWeekDates.length - 1].getDate()}`;
-            html += `<h3 style="margin-top: 10px; border-bottom: 2px solid #06C755; padding-bottom: 5px; font-size: 16px;">来週のシフト (${ns} 〜 ${ne})</h3>`;
+            // ブロックのタイトルを曜日に応じて切り替える
+            const blockLabel = isWeekendMode ? "再来週" : "来週";
+            const ns = `${targetWeekDates[0].getMonth() + 1}/${targetWeekDates[0].getDate()}`;
+            const ne = `${targetWeekDates[targetWeekDates.length - 1].getMonth() + 1}/${targetWeekDates[targetWeekDates.length - 1].getDate()}`;
+            
+            html += `<h3 style="margin-top: 10px; border-bottom: 2px solid #06C755; padding-bottom: 5px; font-size: 16px;">${blockLabel}のシフト (${ns} 〜 ${ne})</h3>`;
 
-            if (nextWeekLocked) {
-                html += getLockedMessageHtml("来週");
+            if (targetWeekLocked) {
+                html += getLockedMessageHtml(blockLabel);
             } else {
-                html += generateDaysHtml(nextWeekDates, holidayData);
+                html += generateDaysHtml(targetWeekDates, holidayData);
             }
 
             container.innerHTML = html;
 
-            if (!nextWeekLocked) {
+            if (!targetWeekLocked) {
                 submitBtn.style.display = 'block';
                 submitBtn.disabled = false;
                 submitBtn.textContent = "シフトを提出する";
